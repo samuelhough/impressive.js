@@ -433,14 +433,14 @@
                 case 33: ; // pg up
                 case 37: ; // left
                 case 38:   // up
-                         impress().prev();
+                         impressive.prev();
                          break;
                 case 9:  ; // tab
                 case 32: ; // space
                 case 34: ; // pg down
                 case 39: ; // right
                 case 40:   // down
-                         impress().next();
+                         impressive.next();
                          break;
             }
             

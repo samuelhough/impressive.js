@@ -9,5 +9,12 @@
 		<div class="step" data-x="500">one </div> 
 	</div>  
 <script src="impressive.js"></script>
+<script>
+impressive.ifSupport(function(){ alert('pass'); }, window);
+
+impressive.ifNoSupport(function(){ alert('fail'); }, window);
+impressive.init();
+
+</script>
 </body>
 </html>
