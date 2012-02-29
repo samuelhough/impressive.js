@@ -406,6 +406,9 @@
             if(!impressSupported){
                 console.log('impress not supported')
                 _runCallbacks(false);
+                this.next = function(){};
+                this.prev = function(){};
+                this.goto = function(){};
             } else {
                 console.log('impress supported');
                 _runCallbacks(true);

@@ -10,9 +10,14 @@
 	</div>  
 <script src="impressive.js"></script>
 <script>
-impressive.ifSupport(function(){ alert('pass'); }, window);
+impressive.ifSupport(function(){ 
+	console.log('pass callback');
+ }, window);
 
-impressive.ifNoSupport(function(){ alert('fail'); }, window);
+impressive.ifNoSupport(function(){ 
+	console.log('fail callback'); 
+}, window);
+
 impressive.init();
 
 </script>
