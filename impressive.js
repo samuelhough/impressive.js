@@ -1,8 +1,8 @@
 /**
  * impressive.js 
  * 
- * impressive.js is a fork of impress.js (v0.3) to make it easy for a developer to use impress.js to build whole websites
- * and not just presentations.
+ * impressive.js is a fork of impress.js (v0.3) that extends it a little bit to make it easy for a developer to use impress.js to build whole websites
+ * and not just presentations.  All credit goes to Bartek Szopka for his awesome library.
  * 
  * Samuel Hough (@samshough) 
  *
