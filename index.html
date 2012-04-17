@@ -1,23 +1,55 @@
 <html>
 <head>
 	<title></title>
+	<style>
+		.but {
+			margin-bottom: 10px;
+		}
+		.support {
+			color: red;
+		}
+		.noSupport {
+			color: white;
+		}
+	</style>
 </head>
 <body>
 	<div id="impress">
-		<div class="step" data-x="100">one </div> 
+		<div id='one' class="step" data-x="100">one </div> 
 
-		<div class="step" data-x="500">one </div> 
+		<div id='two' class="step" data-x="500">
+			<div id='js-forceNoSupport' class='but'>Force no support</div>
+			<div id='js-forceSupport' class='but'> Force Support</div>
+		</div> 
+		
 	</div>  
 <script src="impressive.js"></script>
 <script>
 impressive.ifSupport(function(){ 
-	console.log('pass callback');
+	alert('you have support!');
+	var div = document.getElementById('one');
+	div.innerHTML = 'SUPPORT YAY';
  }, window);
 
+
 impressive.ifNoSupport(function(){ 
-	console.log('fail callback'); 
+	alert('you have no support :(');
+	var div = document.getElementById('one');
+	div.innerHTML = 'NO SUPPORT BOO YOU SUCK';
 }, window);
 
+impressive.ifEither(function(){
+	var forceSupportClick = document.getElementById('js-forceSupport');
+	var forceNoSupportClick = document.getElementById('js-forceNoSupport');
+	forceSupportClick.onclick = function(){
+		alert('forcing support');
+		impressive.forceSupport();
+	}
+	forceNoSupportClick.onclick = function(){
+		alert('forcing no support');
+		impressive.forceNoSupport();
+	}
+});
 impressive.init();
 
 </script>
