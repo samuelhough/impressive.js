@@ -1,6 +1,15 @@
 /**
- * impressive.js is a fork of impress.js by Sam Hough
+ * impressive.js 
  * 
+ * impressive.js is a fork of impress.js (v0.3) to make it easy for a developer to use impress.js to build whole websites
+ * and not just presentations.
+ * 
+ * Samuel Hough (@samshough) 
+ *
+ * MIT Licensed. 
+ *
+ *
+ * -------------------------
  * impress.js
  *
  * impress.js is a presentation tool based on the power of CSS3 transforms and transitions
@@ -16,7 +25,7 @@
  *  url:     http://bartaz.github.com/impress.js/
  *  source:  http://github.com/bartaz/impress.js/
  */
-
+//var debugMe = debugMe || ({ log: function(){ } });
 (function ( document, window ) {
     'use strict';
 
@@ -43,16 +52,15 @@
                 }
 
             }
-
             return memory[ prop ];
         }
-
     })();
 
     var arrayify = function ( a ) {
         return [].slice.call( a );
     };
-    
+    window.arrayify = arrayify;
+
     var css = function ( el, props ) {
         var key, pkey;
         for ( key in props ) {
@@ -79,6 +87,7 @@
         context = context || document;
         return arrayify( context.querySelectorAll(selector) );
     };
+    window.$$ = $$;
     
     var translate = function ( t ) {
         return " translate3d(" + t.x + "px," + t.y + "px," + t.z + "px) ";
@@ -111,15 +120,14 @@
                            ( ua.search(/(iphone)|(ipod)|(android)/) == -1 );
     
     var roots = {};
+    var onActiveFn = function(){};
+    var onInactiveFn = function(){};
     
     var impress = function ( rootId ) {
 
         rootId = rootId || "impress";
         
-        // if already initialized just return the API
-        if (roots["impress-root-" + rootId]) {
-            return roots["impress-root-" + rootId];
-        }
+        
         
         // DOM ELEMENTS
         
@@ -129,7 +137,12 @@
             root.className = "impress-not-supported";
             return;
         } else {
-            root.className = "";
+            try {
+                root.className = "";
+            } catch(e){
+                debugMe.log(e)
+                debugMe.log("Error: Did you define a div with the id 'impress' ?")
+            }
         }
         
         // viewport updates for iPad
@@ -151,7 +164,8 @@
         root.appendChild(canvas);
         
         var steps = $$(".step", root);
-        
+
+        var fixtures = $$(".fixture", root);
         // SETUP
         // set initial values and defaults
         
@@ -189,7 +203,9 @@
             return !!(el && el.id && stepData["impress-" + el.id]);
         }
         
-        steps.forEach(function ( el, idx ) {
+
+        function applyTransForms (el, idx, isFixture) {
+            steps = $$(".step", root);
             var data = el.dataset,
                 step = {
                     translate: {
@@ -206,12 +222,12 @@
                     el: el
                 };
             
-            if ( !el.id ) {
-                el.id = "step-" + (idx + 1);
+            if(isFixture !== true){
+                if ( !el.id ) {
+                    el.id = "step-" + (idx + 1);
+                } 
+                stepData["impress-" + el.id] = step;
             }
-            
-            stepData["impress-" + el.id] = step;
-            
             css(el, {
                 position: "absolute",
                 transform: "translate(-50%,-50%)" +
@@ -220,15 +236,27 @@
                            scale(step.scale),
                 transformStyle: "preserve-3d"
             });
-            
+        }
+
+        steps.forEach(function ( el, idx ) {
+            applyTransForms(el, idx)
         });
+        
+        fixtures.forEach(function( el, idx){
+            applyTransForms(el, idx, true)
+
+        })
 
         // making given step active
 
         var active = null;
         var hashTimeout = null;
-        
+        var previousEl = null;
         var goto = function ( el ) {
+            if(typeof el === 'string') {
+                debugMe.log(el)
+                el = document.getElementById(el);
+            }
             if ( !isStep(el) || el == active) {
                 // selected element is not defined as step or is already active
                 return false;
@@ -247,6 +275,8 @@
             var step = stepData["impress-" + el.id];
             
             if ( active ) {
+
+                onInactiveFn(active);
                 active.classList.remove("active");
             }
             el.classList.add("active");
@@ -258,6 +288,7 @@
             //
             // and it has to be set after animation finishes, because in chrome it
             // causes transtion being laggy
+
             window.clearTimeout( hashTimeout );
             hashTimeout = window.setTimeout(function () {
                 window.location.hash = "#/" + el.id;
@@ -301,7 +332,11 @@
             
             current = target;
             active = el;
-            
+            var nextElThere = steps.indexOf( active ) + 1;
+            var prevElThere = steps.indexOf(active) - 1;
+            var prevEl = prevElThere >= 0 ? steps[ prevElThere ] : steps[ steps.length-1 ];
+            var nextEl = nextElThere < steps.length ? steps[ nextElThere ] : steps[ 0 ];
+            onActiveFn(el, nextEl, prevEl);
             return el;
         };
         
@@ -319,13 +354,15 @@
             return goto(next);
         };
         
-        window.addEventListener("hashchange", function () {
-            goto( getElementFromUrl() );
-        }, false);
-        
-        window.addEventListener("orientationchange", function () {
-            window.scrollTo(0, 0);
-        }, false);
+        (function addEventsToWindow(){
+            window.addEventListener("hashchange", function () {
+                goto( getElementFromUrl() );
+            }, false);
+            
+            window.addEventListener("orientationchange", function () {
+                window.scrollTo(0, 0);
+            }, false);
+        }());
         
         // START 
         // by selecting step defined in url or first step of the presentation
@@ -334,67 +371,106 @@
         return (roots[ "impress-root-" + rootId ] = {
             goto: goto,
             next: next,
-            prev: prev
+            prev: prev,
+            _applyTransForms: applyTransForms
         });
 
     }
 
 
-    window.impressive = (function(impress){ 
-        var console = console || { log: function(){} },
-            noSupportArr =  [],
-            supportArr = [];
-        // Pass in N number of functions to be executed if impress is not supported
-        function ifNoSupport(fn, scope){
-            var fn = fn || function(){};
-            if(typeof scope === 'undefined'){
-                scope = window;
-                console.log('Scope was undefined. Set to window');
-            }
-            noSupportArr.push({ 
-                fn: fn,
-                scope: scope
-            });
-        };
+    window.impressive = (function (impress) { 
 
-        // Pass in N number of functions to be executed if impress is supported
-        function ifSupport(fn, scope){
-            var fn = fn || function(){};
-            if(typeof scope === 'undefined'){
-                scope = window;
-            }
-            supportArr.push({ 
-                fn: fn,
-                scope: scope
-            });
-        };
+        var noSupportArr =  [],
+            supportArr = [],
+            eitherSupportArr = [],
+            contentGroups = {},
+            hasInited = false;
 
-        function _runCallbacks(support){
-            try {
-                var arr;
-                if(support){
-                    arr = supportArr;
-                } else {
-                    arr = noSupportArr;
+        // Debugger that only turns on when ipressive.init is called with true
+        var debugMe = {
+            log: function(){},
+            init: function(debug){
+                debug = debug || false;
+                if(debug){
+                    this.log = function(str){
+                        console.log(str);
+                    }
                 }
+            }
+        }
+
+        var groupNames = {};
+        // Currently adds no functionality as content groups aren't working
+        function _sortContentGroups () {
+            var groups = document.getElementsByClassName('impress-group'),
+                steps = document.getElementsByClassName('step');
+
+            var groupLength = groups.length;
+
+            for(var cur = 0; cur < groupLength; cur++){
+                groupNames[groups[cur].getAttribute('data-group-name')] = groups[cur].querySelector('.step');
+            }
+        };
+
+        function _pushFnIntoArr(fn, scope, direction){
+            debugMe.log("Pushing a function into "+ direction +" array.")
+            if(typeof fn !== 'function'){
+                debugMe.log("Error: You cannot pass in something other than a function.");
+                fn = function(){ };
+            }
+            if(typeof scope !== 'object'){
+                scope = window;
+                debugMe.log('Scope was not an object. Set to window');
+            }
+            var saveObj = { 
+                fn: fn,
+                scope: scope
+            };
+
+            switch(direction){
+                case 'ifSupport':
+                    supportArr.push(saveObj);
+                    break;
+                case 'noSupport':
+                    noSupportArr.push(saveObj);
+                    break;
+                case 'eitherSupport':
+                    eitherSupportArr.push(saveObj);
+                    break;
+                default:
+                    debugMe.log("Error no direction defined");
+                    break;
+
+            };
+
+        };
+
+        function _runCallbacks (support) {
+            try {
+                var arr = eitherSupportArr;
+                if(support){
+                    arr = arr.concat(supportArr);
+                } else {
+                    arr = arr.concat(noSupportArr);
+                }
+                
                 var length = arr.length;
                 for(var cur = 0; cur < length; cur++){
                     arr[cur].fn.call(arr.scope);
                 }
             } catch(e){
-                console.log("Error in callback for when impress support === "+support)
+                debugMe.log("Error in callback for when impress support === "+support)
+                debugMe.log(e);
             }
         };
 
-        function _applyToImpressive(){
+        function _applyToImpressive () {
             var impressor = impress();
-            for(key in impressive){
-                if(impressive.hasOwnProperty(key)){
-                    try {
-                        delete impressive[key];
-                    } catch(e){}
-                }
-            }
+            impressor.addElement = addElement;
+            //impressive.gotoGroup = gotoGroup;
+            impressive.forceSupport = forceSupport;
+            impressive.forceNoSupport = forceNoSupport;
+            
             for(var key in impressor){
                 if(impressor.hasOwnProperty(key)){
                     window.impressive[key] = impressor[key];
@@ -402,26 +478,197 @@
             }
         };
 
-        var init = function(){
-            if(!impressSupported){
-                console.log('impress not supported')
-                _runCallbacks(false);
-                this.next = function(){};
-                this.prev = function(){};
-                this.goto = function(){};
-            } else {
-                console.log('impress supported');
-                _runCallbacks(true);
-                _applyToImpressive();
+        var _cookie = {
+            cookie_name: "impressive_js_forcesupport",
+            getClientSupport: function(){
+                var i,x,y,ARRcookies=document.cookie.split(";");
+                for (i=0;i<ARRcookies.length;i++) {
+                    x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+                    y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+                    x=x.replace(/^\s+|\s+$/g,"");
+                    if (x==this.cookie_name) {
+                        debugMe.log(this.cookie_name+' == '+y)
+                        return unescape(y);
+                    }
+                }
+                debugMe.log(this.cookie_name+' is null')
+                return null;
+                
+            },
+            setCookie: function(value){
+                debugMe.log('Setting '+this.cookie_name+' to '+ value)
+                var exdate = new Date();
+                var exdays = 30;
+                exdate.setDate(exdate.getDate() + exdays);
+                var c_value = escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
+                document.cookie = this.cookie_name + "=" + c_value;
+            }
+        };
+
+
+        function _forceRun(){
+            debugMe.log("Running with support");
+
+            _runCallbacks(true);
+            _applyToImpressive();
+            _sortContentGroups();
+        };
+        function _forceFail(){
+            debugMe.log("Running without support")
+            impressive.forceSupport = forceSupport;
+            impressive.next = function(){};
+            impressive.prev = function(){};
+            impressive.goto = function(){};
+            _runCallbacks(false);
+        };
+
+        var _activeFns = [],
+            _onActive = function(){
+                var len = _activeFns.length;
+                for(var cur = 0; cur <len; cur++){
+                    _activeFns[cur].fn.apply(_activeFns[cur].scope, arguments)
+                }
+            };
+
+        onActiveFn = _onActive;
+
+        var _inactiveFns = [],
+            _onInactive = function(){
+                var len = _inactiveFns.length;
+                for(var cur = 0; cur <len; cur++){
+                    _inactiveFns[cur].fn.apply(_inactiveFns[cur].scope, arguments);      
+                }
+            };
+
+        onInactiveFn = _onInactive;
+
+        /*
+            function removeElement (el) {
+                // TBA
+            };
+        */
+
+        // Currently broken. 
+        /*
+            function gotoGroup (groupName) {
+                this.goto(groupNames[groupName]);
+            };
+        */
+
+
+        /* Public Methods below */
+
+        // Add a 3d Transformed element dynamically to the page.  If isFixture ( bool ), then the element will not
+        // be added to the slideshows steps and will server merely as decoration on the page (A fixture)
+        function addElement (el, isFixture) {
+            debugMe.log("Adding an element dynamically to the page.")
+            if(typeof el === 'string') { el = document.getElementById(el); }
+            var isFixture = isFixture || false;
+            var numSteps = document.getElementsByClassName('step').length-1;
+            numSteps < 0 ? numSteps = 0 : '';
+            this._applyTransForms(el, numSteps, isFixture);
+        };
+
+        // Pass in N number of functions to be executed if impress is not supported
+        function ifNoSupport (fn, scope) {
+            var fn = fn || function(){};
+            var scope = scope || window;
+            _pushFnIntoArr(fn, scope, 'noSupport');
+        };
+
+        // Pass in N number of functions to be executed if impress is supported
+        function ifSupport (fn, scope) {
+            var fn = fn || function(){};
+            var scope = scope || window;
+            _pushFnIntoArr(fn, scope, 'ifSupport');
+        };
+
+        // Pass in N number of functions to be executed if impress is supported or not
+        function ifEither (fn, scope) {
+            var fn = fn || function(){};
+            var scope = scope || window;
+            _pushFnIntoArr(fn, scope, 'eitherSupport');
+        };
+
+        
+
+        // Pass in functions to be called when an element is active.  Receives Dom nodes [currentElement, nextElement, previousElement]
+        function onActive (fn, scope) {
+            fn = fn || function(){};
+            scope = scope || window;
+            _activeFns.push({   
+                fn: fn, 
+                scope: scope 
+            });
+        };
+        
+        // Pass in functions to be called when an element is inactive.  Receives the dom element that was previously active
+        function onInactive (fn, scope) {
+            fn = fn || function(){};
+            scope = scope || window;
+            _inactiveFns.push({ 
+                fn: fn, 
+                scope: scope 
+            });
+        };
+
+        // Force the clients browser to call the noSupport functions when the browser reloads.
+        var forceNoSupport = function() {
+            _cookie.setCookie(false);
+            window.location.reload(true);
+        };
+
+        // Force the clients browser to call the supported functions when the browser reloads.
+        var forceSupport = function() {
+            _cookie.setCookie(true);
+            window.location.reload(true);
+        };
+        
+        // Initialize the impressive object attached to the window
+        var init = function (debug) {
+            debugMe.init(debug);
+            try {
+                if(hasInited === false){
+                    hasInited = true;
+                    debugMe.log(_cookie.getClientSupport())
+                    if(!impressSupported ){
+                        debugMe.log("impress not supported by browser")
+                        if(_cookie.getClientSupport() == 'false' || _cookie.getClientSupport() == null) {
+                            _forceFail();
+                        } else {
+                            _forceRun();
+                        }
+                    } else {
+                        debugMe.log('Impress supported by browser')
+                        if(_cookie.getClientSupport() == 'true' || _cookie.getClientSupport() == null) {
+                            _forceRun();
+                        } else {
+                            _forceFail();
+                        }
+                    }
+                }
+            } catch(e){
+                debugMe.log("Error in impressive.js")
+                debugMe.log(e);
             }
         };
   
         return {
-            ifNoSupport: ifNoSupport,
+            ifNoSupport: ifNoSupport,   
             ifSupport: ifSupport,
-            init: init
+            ifEither: ifEither,
+            addElement: addElement,
+            forceSupport: forceSupport,
+            forceNoSupport: forceNoSupport,
+            init: init,
+            onActive: onActive,
+            onInactive: onInactive,
+            //next: next (comes from impress obj)
+            //prev: prev (comes from impreess obj)
+            //goto: goto (comes from impress  obj)
         };
     }(impress));
+    
 })(document, window);
 
 // EVENTS
@@ -470,7 +717,7 @@
             }
         }
         
-        if ( impress().goto(target) ) {
+        if ( impressive.goto(target) ) {
             event.stopImmediatePropagation();
             event.preventDefault();
         }
@@ -485,7 +732,7 @@
             target = target.parentNode;
         }
         
-        if ( impress().goto(target) ) {
+        if ( impressive.goto(target) ) {
             event.preventDefault();
         }
     }, false);
@@ -498,9 +745,9 @@
                 result = null;
                 
             if ( x < width ) {
-                result = impress().prev();
+                result = impressive.prev();
             } else if ( x > window.innerWidth - width ) {
-                result = impress().next();
+                result = impressive.next();
             }
             
             if (result) {
@@ -508,10 +755,6 @@
             }
         }
     }, false);
-
-
-
-
 })(document, window);
 
 
