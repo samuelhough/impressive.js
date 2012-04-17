@@ -27,6 +27,8 @@ source:  http://github.com/bartaz/impress.js/
 
 IMPRESSIVE.JS
 -
+example site:
+>http://www.julialocascio.com/
 
 DOM Changes:
 -
